@@ -54,7 +54,6 @@ export function useSolubilityApi(options: SolubilityApiOptions = {}) {
       }
 
       const data = await response.json();
-      console.log("DATA: ", data);
       return data;
     } catch (error: any) {
       error.value = error.message || "Failed to predict with visualization";

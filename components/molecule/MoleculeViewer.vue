@@ -26,7 +26,6 @@ const initRDKit = async () => {
 
 onMounted(async () => {
   try {
-    console.log("MOLECULEDATA: ", props.moleculeData);
     // initialize RDKit
     rdkitInstance = await initRDKit();
     loading.value = false;
