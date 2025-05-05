@@ -1,18 +1,11 @@
 <script setup lang="ts">
-const props = defineProps({
-  smiles: {
-    type: String,
-    default: "",
-  },
-  moleculeData: {
-    type: Object,
-    default: () => ({}),
-  },
-  moleculeName: {
-    type: String,
-    default: "",
-  },
-});
+import type { PredictionResponse } from "@/types/api";
+
+const props = defineProps<{
+  smiles: string;
+  moleculeData: PredictionResponse;
+  moleculeName: string;
+}>();
 
 const moleculeContainer = ref(null);
 const loading = ref(false);

@@ -1,23 +1,17 @@
 <script setup lang="ts">
-const props = defineProps({
-  predictionData: {
-    type: Object,
-    default: null,
-  },
-  loading: {
-    type: Boolean,
-    default: false,
-  },
-  error: {
-    type: String,
-    default: "",
-  },
-});
+import type { PredictionResponse } from "@/types/api";
 
-const getSolubilityDescription = () => {
+const props = defineProps<{
+  predictionData: PredictionResponse | null;
+  loading: boolean;
+  error: string;
+}>();
+
+const solubilityDescription = computed(() => {
   const solubility = props.predictionData?.predicted_solubility;
 
-  if (solubility === undefined) return "";
+  if (solubility === undefined || solubility === null)
+    return "unknown solubility characteristics"; // Handle null/undefined
 
   if (solubility > 0) {
     return "very high solubility, making it easily dissolvable in water";
@@ -30,7 +24,7 @@ const getSolubilityDescription = () => {
   } else {
     return "very low solubility, which could present challenges for dissolution";
   }
-};
+});
 </script>
 
 <template>
@@ -84,7 +78,7 @@ const getSolubilityDescription = () => {
 
       <div class="bg-blue-50 border border-blue-100 rounded-md p-4">
         <p class="text-blue-800">
-          This molecule has {{ getSolubilityDescription() }}.
+          This molecule has {{ solubilityDescription }}.
         </p>
       </div>
     </div>
