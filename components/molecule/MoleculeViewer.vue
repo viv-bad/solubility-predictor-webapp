@@ -15,40 +15,8 @@ const props = defineProps({
 });
 
 const moleculeContainer = ref(null);
-const loading = ref(true);
+const loading = ref(false);
 const error = ref("");
-let rdkitInstance = null;
-
-const initRDKit = async () => {
-  const RDKit = await import("@rdkit/rdkit");
-  return RDKit;
-};
-
-onMounted(async () => {
-  try {
-    // initialize RDKit
-    rdkitInstance = await initRDKit();
-    loading.value = false;
-
-    //  render molecule if SMILEs is given
-    if (props.smiles) {
-      renderMolecule();
-    }
-  } catch (error: any) {
-    loading.value = false;
-    error.value = "Failed to load molecule visualization library";
-    console.error(error);
-  }
-});
-
-// watch(
-//   () => props.smiles,
-//   () => {
-//     if (props.smiles && !loading.value && rdkitInstance) {
-//       renderMolecule();
-//     }
-//   }
-// );
 
 watch(
   () => props.moleculeData,
@@ -60,36 +28,12 @@ watch(
   { immediate: true }
 );
 
-const renderMolecule = () => {
-  if (!moleculeContainer.value || !rdkitInstance) return;
-
-  try {
-    // clear previous rendering
-    moleculeContainer.value.innerHTML = "";
-
-    // Create molecule from SMILES
-    const mol = rdkitInstance.get_mol(props.smiles);
-
-    if (!mol) {
-      error.value = "Invalid molecule";
-      return;
-    }
-
-    const svg = mol.get_svg();
-
-    moleculeContainer.value.innerHTML = svg;
-  } catch (error: any) {
-    error.value = "Failed to render molecule";
-    console.error(error);
-  }
-};
-
 const renderMoleculeImage = () => {
   if (!moleculeContainer.value || !props.moleculeData?.image) return;
 
   try {
     // clear previous rendering
-    moleculeContainer.value.innerHTML = "";
+    (moleculeContainer.value as HTMLElement).innerHTML = "";
 
     // Create an image element from the base64 data
     const img = document.createElement("img");
@@ -97,8 +41,8 @@ const renderMoleculeImage = () => {
     img.style.maxWidth = "100%";
     img.style.maxHeight = "100%";
 
-    moleculeContainer.value.appendChild(img);
-  } catch (error) {
+    (moleculeContainer.value as HTMLElement).appendChild(img);
+  } catch (error: any) {
     error.value = "Failed to render molecule image";
     console.error(error);
   }
