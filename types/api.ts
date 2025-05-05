@@ -4,7 +4,7 @@ export interface PredictionResponse {
   predicted_solubility: number;
   solubility_level: string;
   mol_weight: number;
-  log_p: number;
+  logp: number;
   num_atoms: number;
   image?: string;
 }
