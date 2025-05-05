@@ -1,9 +1,6 @@
-interface SolubilityApiOptions {
-  baseUrl?: string;
-}
-
-export function useSolubilityApi(options: SolubilityApiOptions = {}) {
-  const baseUrl = options.baseUrl || "http://localhost:8000";
+export function useSolubilityApi() {
+  const config = useRuntimeConfig();
+  const baseUrl = config.public.apiBaseUrl || "http://localhost:8000";
   const isLoading = ref(false);
   const error = ref("");
 
@@ -13,22 +10,15 @@ export function useSolubilityApi(options: SolubilityApiOptions = {}) {
     error.value = "";
 
     try {
-      const response = await fetch(`${baseUrl}/predict`, {
+      const data = await $fetch(`${baseUrl}/predict`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ smiles }),
+        body: { smiles },
       });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
       return data;
     } catch (error: any) {
-      error.value = error.message || "Failed to predict solubility";
+      error.value =
+        error.data?.message || error.message || "Failed to predict solubility";
       throw error;
     } finally {
       isLoading.value = false;
@@ -44,19 +34,16 @@ export function useSolubilityApi(options: SolubilityApiOptions = {}) {
       const formData = new FormData();
       formData.append("smiles", smiles);
 
-      const response = await fetch(`${baseUrl}/predict-with-visualization`, {
+      const data = await $fetch(`${baseUrl}/predict-with-visualization`, {
         method: "POST",
         body: formData,
       });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
       return data;
     } catch (error: any) {
-      error.value = error.message || "Failed to predict with visualization";
+      error.value =
+        error.data?.message ||
+        error.message ||
+        "Failed to predict with visualization";
       throw error;
     } finally {
       isLoading.value = false;
@@ -69,16 +56,13 @@ export function useSolubilityApi(options: SolubilityApiOptions = {}) {
     error.value = "";
 
     try {
-      const response = await fetch(`${baseUrl}/sample-molecules`);
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await $fetch(`${baseUrl}/sample-molecules`);
       return data;
     } catch (error: any) {
-      error.value = error.message || "Failed to get sample molecules";
+      error.value =
+        error.data?.message ||
+        error.message ||
+        "Failed to get sample molecules";
       throw error;
     } finally {
       isLoading.value = false;
@@ -91,19 +75,16 @@ export function useSolubilityApi(options: SolubilityApiOptions = {}) {
     formData.append("smiles", smiles);
 
     try {
-      const response = await fetch(`${baseUrl}/validate-smiles`, {
+      const data = await $fetch(`${baseUrl}/validate-smiles`, {
         method: "POST",
         body: formData,
       });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      return await response.json();
+      return data;
     } catch (error: any) {
-      console.error("SMILES validation error:", error);
-      return { valid: false };
+      error.value =
+        error.data?.message || error.message || "Failed to validate SMILES";
+      throw error;
     }
   };
 
@@ -113,22 +94,17 @@ export function useSolubilityApi(options: SolubilityApiOptions = {}) {
     error.value = "";
 
     try {
-      const response = await fetch(`${baseUrl}/batch-predict`, {
+      const data = await $fetch(`${baseUrl}/batch-predict`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ smiles_list: smilesList }),
+        body: { smiles_list: smilesList },
       });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
       return data;
     } catch (error: any) {
-      error.value = error.message || "Failed to process batch prediction";
+      error.value =
+        error.data?.message ||
+        error.message ||
+        "Failed to process batch prediction";
       throw error;
     } finally {
       isLoading.value = false;

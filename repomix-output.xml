@@ -1,0 +1,1012 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+<additional_info>
+
+</additional_info>
+
+</file_summary>
+
+<directory_structure>
+assets/
+  css/
+    main.css
+components/
+  molecule/
+    MoleculeInput.vue
+    MoleculeViewer.vue
+  prediction/
+    PredictionResult.vue
+composables/
+  useSolubilityApi.ts
+pages/
+  index.vue
+plugins/
+  performance.ts
+public/
+  robots.txt
+server/
+  tsconfig.json
+utils/
+  rdkit.ts
+.dockerignore
+.gitignore
+app.vue
+Dockerfile
+eslint.config.mjs
+global.d.ts
+nuxt.config.ts
+package.json
+README.md
+tailwind.config.js
+tsconfig.json
+vite.config.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="assets/css/main.css">
+@import "tailwindcss";
+</file>
+
+<file path="components/molecule/MoleculeInput.vue">
+<script setup lang="ts">
+const smiles = ref("");
+const isValid = ref(false);
+const isLoading = ref(false);
+const validationError = ref("");
+const sampleMolecules = ref<any[]>([]);
+
+const api = useSolubilityApi();
+
+// Load sample molecules
+onMounted(async () => {
+  try {
+    const response = await api.getSampleMolecules();
+    sampleMolecules.value = response.samples;
+  } catch (error) {
+    console.error("Failed to load sample molecules:", error);
+  }
+});
+
+// Validate SMILES string
+const validateSmiles = async () => {
+  if (!smiles.value) {
+    isValid.value = false;
+    validationError.value = "";
+    return;
+  }
+
+  try {
+    const response = await api.validateSmiles(smiles.value);
+    isValid.value = response.valid;
+    validationError.value = response.valid ? "" : "Invalid SMILES structure";
+  } catch (error) {
+    isValid.value = false;
+    validationError.value = "Validation failed";
+  }
+};
+
+// Set selected sample molecule
+const selectSample = (sample: any) => {
+  smiles.value = sample.smiles;
+  validateSmiles();
+};
+
+// Emit prediction request
+const emit = defineEmits(["predict"]);
+const predict = () => {
+  if (isValid.value && !isLoading.value) {
+    emit("predict", smiles.value);
+  }
+};
+</script>
+
+<template>
+  <div class="molecule-input">
+    <div class="mb-6">
+      <label
+        for="smiles-input"
+        class="block text-sm font-medium text-gray-700 mb-2">
+        Enter SMILES or select a sample molecule
+      </label>
+      <div class="flex">
+        <input
+          id="smiles-input"
+          v-model="smiles"
+          type="text"
+          placeholder="Enter SMILES string (e.g. CC(=O)OC1=CC=CC=C1C(=O)O)"
+          @input="validateSmiles"
+          class="flex-1 min-w-0 block w-full px-3 py-2 rounded-l-md border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+        <button
+          @click="predict"
+          :disabled="!isValid || isLoading"
+          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-r-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
+          {{ isLoading ? "Loading..." : "Predict" }}
+        </button>
+      </div>
+      <p v-if="validationError" class="mt-2 text-sm text-red-600">
+        {{ validationError }}
+      </p>
+    </div>
+
+    <!-- Sample Molecules -->
+    <div class="mt-8">
+      <h4 class="text-lg font-medium text-gray-900 mb-3">Sample Molecules</h4>
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        <button
+          v-for="sample in sampleMolecules"
+          :key="sample.name"
+          @click="selectSample(sample)"
+          class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm text-gray-800 transition-colors duration-150 truncate">
+          {{ sample.name }}
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+</file>
+
+<file path="components/prediction/PredictionResult.vue">
+<script setup lang="ts">
+const props = defineProps({
+  predictionData: {
+    type: Object,
+    default: null,
+  },
+  loading: {
+    type: Boolean,
+    default: false,
+  },
+  error: {
+    type: String,
+    default: "",
+  },
+});
+
+const getSolubilityDescription = () => {
+  const solubility = props.predictionData?.predicted_solubility;
+
+  if (solubility === undefined) return "";
+
+  if (solubility > 0) {
+    return "very high solubility, making it easily dissolvable in water";
+  } else if (solubility > -2) {
+    return "high solubility, generally well-suited for aqueous environments";
+  } else if (solubility > -4) {
+    return "moderate solubility, which may be suitable for many applications";
+  } else if (solubility > -6) {
+    return "low solubility, which may require solubility enhancers in formulations";
+  } else {
+    return "very low solubility, which could present challenges for dissolution";
+  }
+};
+</script>
+
+<template>
+  <div class="bg-white shadow-md rounded-lg p-6 mt-8">
+    <div v-if="loading" class="py-8 text-center">
+      <div
+        class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent mb-4"></div>
+      <p class="text-gray-600">Calculating solubility prediction...</p>
+    </div>
+
+    <div v-else-if="error" class="py-6 text-center">
+      <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+        <p class="text-red-600">{{ error }}</p>
+      </div>
+    </div>
+
+    <div v-else-if="predictionData" class="results">
+      <div class="border-b border-gray-200 pb-4 mb-6">
+        <h3 class="text-xl font-semibold text-gray-800">
+          Solubility Prediction Results
+        </h3>
+      </div>
+
+      <!-- Uncomment when SolubilityGauge component is ready -->
+      <!-- <div class="mb-6">
+        <SolubilityGauge
+          :value="predictionData.predicted_solubility"
+          :level="predictionData.solubility_level" />
+      </div> -->
+
+      <div class="bg-gray-50 rounded-md p-4 mb-6">
+        <div class="grid grid-cols-2 gap-4">
+          <div class="result-item">
+            <span class="block text-sm text-gray-500 mb-1"
+              >Predicted Solubility:</span
+            >
+            <span class="text-lg font-medium text-gray-900">{{
+              predictionData.predicted_solubility?.toFixed(2) || "N/A"
+            }}</span>
+          </div>
+          <div class="result-item">
+            <span class="block text-sm text-gray-500 mb-1"
+              >Solubility Level:</span
+            >
+            <span class="text-lg font-medium text-gray-900">{{
+              predictionData.solubility_level || "N/A"
+            }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-blue-50 border border-blue-100 rounded-md p-4">
+        <p class="text-blue-800">
+          This molecule has {{ getSolubilityDescription() }}.
+        </p>
+      </div>
+    </div>
+  </div>
+</template>
+</file>
+
+<file path="pages/index.vue">
+<script setup lang="ts">
+const currentSmiles = ref("");
+const predictionResult = ref(null);
+
+// Uncomment and properly implement the API usage
+const { isLoading, error, predictWithVisualization } = useSolubilityApi();
+
+const handlePredict = async (smiles: string) => {
+  currentSmiles.value = smiles;
+  predictionResult.value = null;
+
+  try {
+    const result = await predictWithVisualization(smiles);
+    predictionResult.value = result;
+  } catch (err) {
+    console.error("Prediction failed", err);
+  }
+};
+</script>
+
+<template>
+  <div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <header class="max-w-3xl mx-auto text-center mb-12">
+      <h1 class="text-3xl font-extrabold text-gray-900 sm:text-4xl mb-3">
+        Molecular Solubility Predictor
+      </h1>
+      <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+        Predict the solubility of molecules using a Graph Neural Network model
+      </p>
+    </header>
+
+    <div class="max-w-4xl mx-auto">
+      <div class="bg-white shadow-md rounded-lg p-6 mb-8">
+        <MoleculeInput @predict="handlePredict" />
+      </div>
+
+      <div v-if="currentSmiles" class="visualization-section">
+        <MoleculeViewer
+          :smiles="currentSmiles"
+          :molecule-data="predictionResult" />
+      </div>
+
+      <div class="results-section">
+        <PredictionResult
+          :prediction-data="predictionResult"
+          :loading="isLoading"
+          :error="error" />
+      </div>
+    </div>
+  </div>
+</template>
+</file>
+
+<file path="plugins/performance.ts">
+export default defineNuxtPlugin(() => {
+  if (process.client) {
+    // Measure and log performance metrics
+    window.addEventListener("load", () => {
+      // Record time to first paint
+      const paintMetrics = performance.getEntriesByType("paint");
+      const firstPaint = paintMetrics.find(
+        (metric) => metric.name === "first-paint"
+      );
+
+      console.log("First Paint:", firstPaint?.startTime);
+
+      // Record time to interactive using newer Performance API
+      setTimeout(() => {
+        const navigationEntries = performance.getEntriesByType("navigation");
+        if (navigationEntries.length > 0) {
+          const navEntry = navigationEntries[0] as PerformanceNavigationTiming;
+          const interactive = navEntry.domInteractive;
+
+          console.log("Time to Interactive:", interactive);
+        } else {
+          console.log("Navigation timing not available");
+        }
+      }, 0);
+    });
+  }
+});
+</file>
+
+<file path="public/robots.txt">
+User-Agent: *
+Disallow:
+</file>
+
+<file path="server/tsconfig.json">
+{
+  "extends": "../.nuxt/tsconfig.server.json"
+}
+</file>
+
+<file path="utils/rdkit.ts">
+// RDKit initialization utility
+let rdkitInstance: any = null;
+let rdkitPromise: any = null;
+
+export async function initRDKit() {
+  // If RDKit is already loaded, return the instance
+  if (rdkitInstance) {
+    return rdkitInstance;
+  }
+
+  // If RDKit is being loaded, wait for it
+  if (rdkitPromise) {
+    return rdkitPromise;
+  }
+
+  // Load RDKit
+  rdkitPromise = new Promise((resolve, reject) => {
+    // Load the RDKit JS file
+    const script = document.createElement("script");
+    script.src = "https://unpkg.com/@rdkit/rdkit/dist/RDKit_minimal.js";
+    script.async = true;
+
+    script.onload = () => {
+      // Initialize RDKit
+      window
+        .initRDKitModule()
+        .then((RDKit: any) => {
+          rdkitInstance = RDKit;
+          resolve(RDKit);
+        })
+        .catch(reject);
+    };
+
+    script.onerror = () => {
+      reject(new Error("Failed to load RDKit"));
+    };
+
+    document.head.appendChild(script);
+  });
+
+  return rdkitPromise;
+}
+</file>
+
+<file path=".dockerignore">
+node_modules
+npm-debug.log
+.nuxt
+dist
+.git
+.github
+.vscode
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+</file>
+
+<file path=".gitignore">
+# Nuxt dev/build outputs
+.output
+.data
+.nuxt
+.nitro
+.cache
+dist
+
+# Node dependencies
+node_modules
+
+# Logs
+logs
+*.log
+
+# Misc
+.DS_Store
+.fleet
+.idea
+
+# Local env files
+.env
+.env.*
+!.env.example
+</file>
+
+<file path="app.vue">
+<template>
+  <div>
+    <NuxtRouteAnnouncer />
+    <NuxtPage />
+  </div>
+</template>
+</file>
+
+<file path="Dockerfile">
+# Base image
+FROM node:18-alpine AS build
+
+# Set working directory
+WORKDIR /app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy the rest of the application
+COPY . .
+
+# Build the application
+RUN npm run build
+
+# Production stage
+FROM node:18-alpine AS production
+
+# Set working directory
+WORKDIR /app
+
+# Copy built app from build stage
+COPY --from=build /app/.output /app/.output
+
+# Set environment variables
+ENV HOST=0.0.0.0
+ENV PORT=3000
+ENV NODE_ENV=production
+
+# Expose the port the app will run on
+EXPOSE 3000
+
+# Start the application
+CMD ["node", ".output/server/index.mjs"]
+</file>
+
+<file path="eslint.config.mjs">
+// @ts-check
+import withNuxt from './.nuxt/eslint.config.mjs'
+
+export default withNuxt(
+  // Your custom configs here
+)
+</file>
+
+<file path="global.d.ts">
+interface Window {
+  initRDKitModule: () => Promise<any>;
+}
+</file>
+
+<file path="nuxt.config.ts">
+// https://nuxt.com/docs/api/configuration/nuxt-config
+import tailwindcss from "@tailwindcss/vite";
+
+export default defineNuxtConfig({
+  devtools: { enabled: true },
+  css: ["~/assets/css/main.css"],
+  vite: {
+    plugins: [tailwindcss()],
+  },
+  modules: ["@pinia/nuxt", "@nuxt/ui"],
+  typescript: {
+    strict: true,
+  },
+  runtimeConfig: {
+    public: {
+      apiBaseUrl: process.env.API_BASE_URL || "http://localhost:8000",
+    },
+  },
+});
+</file>
+
+<file path="package.json">
+{
+  "name": "nuxt-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@nuxt/content": "^3.5.1",
+    "@nuxt/eslint": "^1.3.0",
+    "@nuxt/fonts": "^0.11.2",
+    "@nuxt/icon": "^1.12.0",
+    "@nuxt/image": "^1.10.0",
+    "@nuxt/scripts": "^0.11.6",
+    "@nuxt/test-utils": "^3.17.2",
+    "@nuxt/ui": "^3.1.1",
+    "@pinia/nuxt": "^0.11.0",
+    "@rdkit/rdkit": "^2025.3.2-1.0.0",
+    "@tailwindcss/vite": "^4.1.5",
+    "@unhead/vue": "^2.0.8",
+    "nuxt": "^3.17.1",
+    "pinia": "^3.0.2",
+    "tailwindcss": "^4.1.5",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@nuxt/eslint-config": "^1.3.0",
+    "@types/node": "^22.15.3",
+    "eslint": "^9.26.0",
+    "typescript": "^5.8.3"
+  }
+}
+</file>
+
+<file path="README.md">
+# Nuxt Minimal Starter
+
+Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+
+## Setup
+
+Make sure to install dependencies:
+
+```bash
+# npm
+npm install
+
+# pnpm
+pnpm install
+
+# yarn
+yarn install
+
+# bun
+bun install
+```
+
+## Development Server
+
+Start the development server on `http://localhost:3000`:
+
+```bash
+# npm
+npm run dev
+
+# pnpm
+pnpm dev
+
+# yarn
+yarn dev
+
+# bun
+bun run dev
+```
+
+## Production
+
+Build the application for production:
+
+```bash
+# npm
+npm run build
+
+# pnpm
+pnpm build
+
+# yarn
+yarn build
+
+# bun
+bun run build
+```
+
+Locally preview production build:
+
+```bash
+# npm
+npm run preview
+
+# pnpm
+pnpm preview
+
+# yarn
+yarn preview
+
+# bun
+bun run preview
+```
+
+Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+</file>
+
+<file path="tailwind.config.js">
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./components/**/*.{js,vue,ts}",
+    "./layouts/**/*.vue",
+    "./pages/**/*.vue",
+    "./plugins/**/*.{js,ts}",
+    "./app.vue",
+    "./error.vue",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+};
+</file>
+
+<file path="tsconfig.json">
+{
+  // https://nuxt.com/docs/guide/concepts/typescript
+  "extends": "./.nuxt/tsconfig.json"
+}
+</file>
+
+<file path="vite.config.ts">
+import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
+export default defineConfig({
+  plugins: [tailwindcss()],
+});
+</file>
+
+<file path="components/molecule/MoleculeViewer.vue">
+<script setup lang="ts">
+const props = defineProps({
+  smiles: {
+    type: String,
+    default: "",
+  },
+  moleculeData: {
+    type: Object,
+    default: () => ({}),
+  },
+  moleculeName: {
+    type: String,
+    default: "",
+  },
+});
+
+const moleculeContainer = ref(null);
+const loading = ref(true);
+const error = ref("");
+let rdkitInstance = null;
+
+const initRDKit = async () => {
+  const RDKit = await import("@rdkit/rdkit");
+  return RDKit;
+};
+
+onMounted(async () => {
+  try {
+    // initialize RDKit
+    rdkitInstance = await initRDKit();
+    loading.value = false;
+
+    //  render molecule if SMILEs is given
+    if (props.smiles) {
+      renderMolecule();
+    }
+  } catch (error: any) {
+    loading.value = false;
+    error.value = "Failed to load molecule visualization library";
+    console.error(error);
+  }
+});
+
+// watch(
+//   () => props.smiles,
+//   () => {
+//     if (props.smiles && !loading.value && rdkitInstance) {
+//       renderMolecule();
+//     }
+//   }
+// );
+
+watch(
+  () => props.moleculeData,
+  () => {
+    if (props.moleculeData?.image) {
+      renderMoleculeImage();
+    }
+  },
+  { immediate: true }
+);
+
+const renderMolecule = () => {
+  if (!moleculeContainer.value || !rdkitInstance) return;
+
+  try {
+    // clear previous rendering
+    moleculeContainer.value.innerHTML = "";
+
+    // Create molecule from SMILES
+    const mol = rdkitInstance.get_mol(props.smiles);
+
+    if (!mol) {
+      error.value = "Invalid molecule";
+      return;
+    }
+
+    const svg = mol.get_svg();
+
+    moleculeContainer.value.innerHTML = svg;
+  } catch (error: any) {
+    error.value = "Failed to render molecule";
+    console.error(error);
+  }
+};
+
+const renderMoleculeImage = () => {
+  if (!moleculeContainer.value || !props.moleculeData?.image) return;
+
+  try {
+    // clear previous rendering
+    moleculeContainer.value.innerHTML = "";
+
+    // Create an image element from the base64 data
+    const img = document.createElement("img");
+    img.src = `data:image/png;base64,${props.moleculeData.image}`;
+    img.style.maxWidth = "100%";
+    img.style.maxHeight = "100%";
+
+    moleculeContainer.value.appendChild(img);
+  } catch (error) {
+    error.value = "Failed to render molecule image";
+    console.error(error);
+  }
+};
+</script>
+
+<template>
+  <div class="bg-white shadow-md rounded-lg p-6 mb-8">
+    <div v-if="loading" class="py-8 text-center">
+      <div
+        class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent mb-4"></div>
+      <p class="text-gray-600">Loading molecule visualization...</p>
+    </div>
+
+    <div v-else-if="error" class="py-6 text-center">
+      <div class="bg-red-50 border border-red-200 rounded-md p-4">
+        <p class="text-red-600">{{ error }}</p>
+      </div>
+    </div>
+
+    <div v-else class="flex flex-col md:flex-row gap-6">
+      <div
+        ref="moleculeContainer"
+        class="molecule-container flex-1 flex items-center justify-center min-h-[200px] bg-gray-50 rounded-lg p-4"></div>
+
+      <div class="molecule-info flex-1">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">
+          {{ moleculeName || moleculeData?.compound_name || "Molecule" }}
+        </h3>
+
+        <div class="properties space-y-3 bg-gray-50 rounded-md p-4">
+          <div
+            class="property flex justify-between items-center border-b border-gray-200 pb-2">
+            <span class="text-sm text-gray-600">Molecular Weight:</span>
+            <span class="font-medium text-gray-900">{{
+              moleculeData?.mol_weight?.toFixed(2) || "N/A"
+            }}</span>
+          </div>
+
+          <div
+            class="property flex justify-between items-center border-b border-gray-200 pb-2">
+            <span class="text-sm text-gray-600">LogP:</span>
+            <span class="font-medium text-gray-900">{{
+              moleculeData?.logp?.toFixed(2) || "N/A"
+            }}</span>
+          </div>
+
+          <div class="property flex justify-between items-center">
+            <span class="text-sm text-gray-600">Atoms:</span>
+            <span class="font-medium text-gray-900">{{
+              moleculeData?.num_atoms || "N/A"
+            }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+</file>
+
+<file path="composables/useSolubilityApi.ts">
+interface SolubilityApiOptions {
+  baseUrl?: string;
+}
+
+export function useSolubilityApi(options: SolubilityApiOptions = {}) {
+  const baseUrl = options.baseUrl || "http://localhost:8000";
+  const isLoading = ref(false);
+  const error = ref("");
+
+  // Predict solubility for a single molecule
+  const predictSolubility = async (smiles: string) => {
+    isLoading.value = true;
+    error.value = "";
+
+    try {
+      const response = await fetch(`${baseUrl}/predict`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ smiles }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      error.value = error.message || "Failed to predict solubility";
+      throw error;
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+  // Predict with visualization
+  const predictWithVisualization = async (smiles: string) => {
+    isLoading.value = true;
+    error.value = "";
+
+    try {
+      const formData = new FormData();
+      formData.append("smiles", smiles);
+
+      const response = await fetch(`${baseUrl}/predict-with-visualization`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      error.value = error.message || "Failed to predict with visualization";
+      throw error;
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+  // Get sample molecules
+  const getSampleMolecules = async () => {
+    isLoading.value = true;
+    error.value = "";
+
+    try {
+      const response = await fetch(`${baseUrl}/sample-molecules`);
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      error.value = error.message || "Failed to get sample molecules";
+      throw error;
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+  // Validate SMILES
+  const validateSmiles = async (smiles: string) => {
+    const formData = new FormData();
+    formData.append("smiles", smiles);
+
+    try {
+      const response = await fetch(`${baseUrl}/validate-smiles`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error: any) {
+      console.error("SMILES validation error:", error);
+      return { valid: false };
+    }
+  };
+
+  // Batch prediction
+  const predictBatch = async (smilesList: string[]) => {
+    isLoading.value = true;
+    error.value = "";
+
+    try {
+      const response = await fetch(`${baseUrl}/batch-predict`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ smiles_list: smilesList }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      error.value = error.message || "Failed to process batch prediction";
+      throw error;
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+  return {
+    isLoading,
+    error,
+    predictSolubility,
+    predictWithVisualization,
+    getSampleMolecules,
+    validateSmiles,
+    predictBatch,
+  };
+}
+</file>
+
+</files>
