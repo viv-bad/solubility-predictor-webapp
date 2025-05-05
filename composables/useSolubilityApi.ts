@@ -1,3 +1,5 @@
+import type { PredictionResponse } from "~/types/api";
+
 export function useSolubilityApi() {
   const config = useRuntimeConfig();
   const baseUrl = config.public.apiBaseUrl || "http://localhost:8000";
@@ -5,17 +7,19 @@ export function useSolubilityApi() {
   const error = ref("");
 
   // Predict solubility for a single molecule
-  const predictSolubility = async (smiles: string) => {
+  const predictSolubility = async (
+    smiles: string
+  ): Promise<PredictionResponse> => {
     isLoading.value = true;
     error.value = "";
 
     try {
-      const data = await $fetch(`${baseUrl}/predict`, {
+      const data = await $fetch<PredictionResponse>(`${baseUrl}/predict`, {
         method: "POST",
         body: { smiles },
       });
 
-      return data;
+      return data as PredictionResponse;
     } catch (error: any) {
       error.value =
         error.data?.message || error.message || "Failed to predict solubility";
@@ -26,7 +30,9 @@ export function useSolubilityApi() {
   };
 
   // Predict with visualization
-  const predictWithVisualization = async (smiles: string) => {
+  const predictWithVisualization = async (
+    smiles: string
+  ): Promise<PredictionResponse> => {
     isLoading.value = true;
     error.value = "";
 
@@ -34,11 +40,14 @@ export function useSolubilityApi() {
       const formData = new FormData();
       formData.append("smiles", smiles);
 
-      const data = await $fetch(`${baseUrl}/predict-with-visualization`, {
-        method: "POST",
-        body: formData,
-      });
-      return data;
+      const data = await $fetch<PredictionResponse>(
+        `${baseUrl}/predict-with-visualization`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      return data as PredictionResponse;
     } catch (error: any) {
       error.value =
         error.data?.message ||
