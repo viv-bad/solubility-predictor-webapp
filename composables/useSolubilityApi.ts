@@ -1,4 +1,9 @@
-import type { PredictionResponse } from "~/types/api";
+import type {
+  BatchPredictionResponse,
+  PredictionResponse,
+  SampleMoleculesResponse,
+  ValidateSmilesResponse,
+} from "~/types/api";
 
 export function useSolubilityApi() {
   const config = useRuntimeConfig();
@@ -19,7 +24,7 @@ export function useSolubilityApi() {
         body: { smiles },
       });
 
-      return data as PredictionResponse;
+      return data;
     } catch (error: any) {
       error.value =
         error.data?.message || error.message || "Failed to predict solubility";
@@ -47,7 +52,7 @@ export function useSolubilityApi() {
           body: formData,
         }
       );
-      return data as PredictionResponse;
+      return data;
     } catch (error: any) {
       error.value =
         error.data?.message ||
@@ -60,12 +65,14 @@ export function useSolubilityApi() {
   };
 
   // Get sample molecules
-  const getSampleMolecules = async () => {
+  const getSampleMolecules = async (): Promise<SampleMoleculesResponse> => {
     isLoading.value = true;
     error.value = "";
 
     try {
-      const data = await $fetch(`${baseUrl}/sample-molecules`);
+      const data = await $fetch<SampleMoleculesResponse>(
+        `${baseUrl}/sample-molecules`
+      );
       return data;
     } catch (error: any) {
       error.value =
@@ -79,15 +86,20 @@ export function useSolubilityApi() {
   };
 
   // Validate SMILES
-  const validateSmiles = async (smiles: string) => {
+  const validateSmiles = async (
+    smiles: string
+  ): Promise<ValidateSmilesResponse> => {
     const formData = new FormData();
     formData.append("smiles", smiles);
 
     try {
-      const data = await $fetch(`${baseUrl}/validate-smiles`, {
-        method: "POST",
-        body: formData,
-      });
+      const data = await $fetch<ValidateSmilesResponse>(
+        `${baseUrl}/validate-smiles`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
       return data;
     } catch (error: any) {
@@ -98,15 +110,20 @@ export function useSolubilityApi() {
   };
 
   // Batch prediction
-  const predictBatch = async (smilesList: string[]) => {
+  const predictBatch = async (
+    smilesList: string[]
+  ): Promise<BatchPredictionResponse> => {
     isLoading.value = true;
     error.value = "";
 
     try {
-      const data = await $fetch(`${baseUrl}/batch-predict`, {
-        method: "POST",
-        body: { smiles_list: smilesList },
-      });
+      const data = await $fetch<BatchPredictionResponse>(
+        `${baseUrl}/batch-predict`,
+        {
+          method: "POST",
+          body: { smiles_list: smilesList },
+        }
+      );
 
       return data;
     } catch (error: any) {
