@@ -4,6 +4,7 @@ const isValid = ref(false);
 const isLoading = ref(false);
 const validationError = ref("");
 const sampleMolecules = ref<any[]>([]);
+const debounceTimeout = ref<NodeJS.Timeout | null>(null);
 
 const api = useSolubilityApi();
 
@@ -17,22 +18,30 @@ onMounted(async () => {
   }
 });
 
-// Validate SMILES string
+// Validate SMILES string with debouncing
 const validateSmiles = async () => {
-  if (!smiles.value) {
-    isValid.value = false;
-    validationError.value = "";
-    return;
+  // Clear any existing timeout
+  if (debounceTimeout.value) {
+    clearTimeout(debounceTimeout.value);
   }
 
-  try {
-    const response = await api.validateSmiles(smiles.value);
-    isValid.value = response.valid;
-    validationError.value = response.valid ? "" : "Invalid SMILES structure";
-  } catch (error) {
-    isValid.value = false;
-    validationError.value = "Validation failed";
-  }
+  // Set a new timeout
+  debounceTimeout.value = setTimeout(async () => {
+    if (!smiles.value) {
+      isValid.value = false;
+      validationError.value = "";
+      return;
+    }
+
+    try {
+      const response = await api.validateSmiles(smiles.value);
+      isValid.value = response.valid;
+      validationError.value = response.valid ? "" : "Invalid SMILES structure";
+    } catch (error) {
+      isValid.value = false;
+      validationError.value = "Validation failed";
+    }
+  }, 500); // 500ms debounce delay
 };
 
 // Set selected sample molecule
