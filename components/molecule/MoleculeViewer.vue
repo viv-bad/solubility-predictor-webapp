@@ -3,8 +3,8 @@ import type { PredictionResponse } from "@/types/api";
 
 const props = defineProps<{
   smiles: string;
-  moleculeData: PredictionResponse;
-  moleculeName: string;
+  moleculeData: PredictionResponse | null;
+  moleculeName: string | "null";
 }>();
 
 const moleculeContainer = ref(null);

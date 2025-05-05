@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import type { PredictionResponse } from "@/types/api";
 const currentSmiles = ref("");
-const predictionResult = ref(null);
+const predictionResult = ref<PredictionResponse | null>(null);
 
-// Uncomment and properly implement the API usage
 const { isLoading, error, predictWithVisualization } = useSolubilityApi();
 
 const handlePredict = async (smiles: string) => {
@@ -10,7 +10,7 @@ const handlePredict = async (smiles: string) => {
   predictionResult.value = null;
 
   try {
-    const result = await predictWithVisualization(smiles);
+    const result: PredictionResponse = await predictWithVisualization(smiles);
     predictionResult.value = result;
   } catch (err) {
     console.error("Prediction failed", err);
@@ -37,7 +37,8 @@ const handlePredict = async (smiles: string) => {
       <div v-if="currentSmiles" class="visualization-section">
         <MoleculeViewer
           :smiles="currentSmiles"
-          :molecule-data="predictionResult" />
+          :molecule-data="predictionResult"
+          :molecule-name="predictionResult?.compound_name || 'Molecule'" />
       </div>
 
       <div class="results-section">
