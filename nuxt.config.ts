@@ -7,6 +7,7 @@ export default defineNuxtConfig({
   vite: {
     plugins: [tailwindcss()],
   },
+  plugins: ["~/plugins/wake-up-server.ts"],
   modules: ["@pinia/nuxt", "@nuxt/ui"],
   typescript: {
     strict: true,

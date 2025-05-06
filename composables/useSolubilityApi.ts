@@ -137,6 +137,24 @@ export function useSolubilityApi() {
     }
   };
 
+  const wakeUpServer = async (): Promise<boolean> => {
+    try {
+      const response = await $fetch(`${baseUrl}/health`, {
+        method: "GET",
+        retry: 3,
+        retryDelay: 1000,
+      });
+      console.log("Server is awake", response);
+      return true;
+    } catch (error) {
+      console.error(
+        "Failed to wake up server, it might take a moment to start",
+        error
+      );
+      return false;
+    }
+  };
+
   return {
     isLoading,
     error,
@@ -145,5 +163,6 @@ export function useSolubilityApi() {
     getSampleMolecules,
     validateSmiles,
     predictBatch,
+    wakeUpServer,
   };
 }

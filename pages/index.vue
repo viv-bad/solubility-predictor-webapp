@@ -4,6 +4,7 @@ const currentSmiles = ref("");
 const predictionResult = ref<PredictionResponse | null>(null);
 
 const { isLoading, error, predictWithVisualization } = useSolubilityApi();
+const { $serverWaking } = useNuxtApp();
 
 const handlePredict = async (smiles: string) => {
   currentSmiles.value = smiles;
@@ -19,6 +20,15 @@ const handlePredict = async (smiles: string) => {
 </script>
 
 <template>
+  <div>
+    <div v-if="$serverWaking" class="server-loading-indicator">
+      <div class="bg-amber-50 border border-amber-200 rounded-md p-4 mb-4">
+        <p class="text-amber-700">
+          Our prediction server is starting up. This may take a moment...
+        </p>
+      </div>
+    </div>
+  </div>
   <div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
     <header class="max-w-3xl mx-auto text-center mb-12">
       <h1 class="text-3xl font-extrabold text-gray-900 sm:text-4xl mb-3">
