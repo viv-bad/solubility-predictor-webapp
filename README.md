@@ -7,6 +7,10 @@
 
 This is the Nuxt.js frontend application for the Molecular Solubility Predictor. It provides a user interface to interact with a FastAPI backend, which uses a trained Graph Neural Network (GNN) model to predict the aqueous solubility of chemical compounds based on their SMILES representation.
 
+## Live Demo
+
+**Try it now:** [https://solpred.netlify.app/](https://solpred.netlify.app/)
+
 ## Features
 
 - **SMILES Input:** Enter a molecule's structure using its SMILES string.

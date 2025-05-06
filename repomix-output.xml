@@ -62,9 +62,12 @@ public/
   robots.txt
 server/
   tsconfig.json
+types/
+  api.ts
 utils/
   rdkit.ts
 .dockerignore
+.env.example
 .gitignore
 app.vue
 Dockerfile
@@ -83,253 +86,6 @@ This section contains the contents of the repository's files.
 
 <file path="assets/css/main.css">
 @import "tailwindcss";
-</file>
-
-<file path="components/molecule/MoleculeInput.vue">
-<script setup lang="ts">
-const smiles = ref("");
-const isValid = ref(false);
-const isLoading = ref(false);
-const validationError = ref("");
-const sampleMolecules = ref<any[]>([]);
-
-const api = useSolubilityApi();
-
-// Load sample molecules
-onMounted(async () => {
-  try {
-    const response = await api.getSampleMolecules();
-    sampleMolecules.value = response.samples;
-  } catch (error) {
-    console.error("Failed to load sample molecules:", error);
-  }
-});
-
-// Validate SMILES string
-const validateSmiles = async () => {
-  if (!smiles.value) {
-    isValid.value = false;
-    validationError.value = "";
-    return;
-  }
-
-  try {
-    const response = await api.validateSmiles(smiles.value);
-    isValid.value = response.valid;
-    validationError.value = response.valid ? "" : "Invalid SMILES structure";
-  } catch (error) {
-    isValid.value = false;
-    validationError.value = "Validation failed";
-  }
-};
-
-// Set selected sample molecule
-const selectSample = (sample: any) => {
-  smiles.value = sample.smiles;
-  validateSmiles();
-};
-
-// Emit prediction request
-const emit = defineEmits(["predict"]);
-const predict = () => {
-  if (isValid.value && !isLoading.value) {
-    emit("predict", smiles.value);
-  }
-};
-</script>
-
-<template>
-  <div class="molecule-input">
-    <div class="mb-6">
-      <label
-        for="smiles-input"
-        class="block text-sm font-medium text-gray-700 mb-2">
-        Enter SMILES or select a sample molecule
-      </label>
-      <div class="flex">
-        <input
-          id="smiles-input"
-          v-model="smiles"
-          type="text"
-          placeholder="Enter SMILES string (e.g. CC(=O)OC1=CC=CC=C1C(=O)O)"
-          @input="validateSmiles"
-          class="flex-1 min-w-0 block w-full px-3 py-2 rounded-l-md border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
-        <button
-          @click="predict"
-          :disabled="!isValid || isLoading"
-          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-r-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
-          {{ isLoading ? "Loading..." : "Predict" }}
-        </button>
-      </div>
-      <p v-if="validationError" class="mt-2 text-sm text-red-600">
-        {{ validationError }}
-      </p>
-    </div>
-
-    <!-- Sample Molecules -->
-    <div class="mt-8">
-      <h4 class="text-lg font-medium text-gray-900 mb-3">Sample Molecules</h4>
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-        <button
-          v-for="sample in sampleMolecules"
-          :key="sample.name"
-          @click="selectSample(sample)"
-          class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm text-gray-800 transition-colors duration-150 truncate">
-          {{ sample.name }}
-        </button>
-      </div>
-    </div>
-  </div>
-</template>
-</file>
-
-<file path="components/prediction/PredictionResult.vue">
-<script setup lang="ts">
-const props = defineProps({
-  predictionData: {
-    type: Object,
-    default: null,
-  },
-  loading: {
-    type: Boolean,
-    default: false,
-  },
-  error: {
-    type: String,
-    default: "",
-  },
-});
-
-const getSolubilityDescription = () => {
-  const solubility = props.predictionData?.predicted_solubility;
-
-  if (solubility === undefined) return "";
-
-  if (solubility > 0) {
-    return "very high solubility, making it easily dissolvable in water";
-  } else if (solubility > -2) {
-    return "high solubility, generally well-suited for aqueous environments";
-  } else if (solubility > -4) {
-    return "moderate solubility, which may be suitable for many applications";
-  } else if (solubility > -6) {
-    return "low solubility, which may require solubility enhancers in formulations";
-  } else {
-    return "very low solubility, which could present challenges for dissolution";
-  }
-};
-</script>
-
-<template>
-  <div class="bg-white shadow-md rounded-lg p-6 mt-8">
-    <div v-if="loading" class="py-8 text-center">
-      <div
-        class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent mb-4"></div>
-      <p class="text-gray-600">Calculating solubility prediction...</p>
-    </div>
-
-    <div v-else-if="error" class="py-6 text-center">
-      <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
-        <p class="text-red-600">{{ error }}</p>
-      </div>
-    </div>
-
-    <div v-else-if="predictionData" class="results">
-      <div class="border-b border-gray-200 pb-4 mb-6">
-        <h3 class="text-xl font-semibold text-gray-800">
-          Solubility Prediction Results
-        </h3>
-      </div>
-
-      <!-- Uncomment when SolubilityGauge component is ready -->
-      <!-- <div class="mb-6">
-        <SolubilityGauge
-          :value="predictionData.predicted_solubility"
-          :level="predictionData.solubility_level" />
-      </div> -->
-
-      <div class="bg-gray-50 rounded-md p-4 mb-6">
-        <div class="grid grid-cols-2 gap-4">
-          <div class="result-item">
-            <span class="block text-sm text-gray-500 mb-1"
-              >Predicted Solubility:</span
-            >
-            <span class="text-lg font-medium text-gray-900">{{
-              predictionData.predicted_solubility?.toFixed(2) || "N/A"
-            }}</span>
-          </div>
-          <div class="result-item">
-            <span class="block text-sm text-gray-500 mb-1"
-              >Solubility Level:</span
-            >
-            <span class="text-lg font-medium text-gray-900">{{
-              predictionData.solubility_level || "N/A"
-            }}</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="bg-blue-50 border border-blue-100 rounded-md p-4">
-        <p class="text-blue-800">
-          This molecule has {{ getSolubilityDescription() }}.
-        </p>
-      </div>
-    </div>
-  </div>
-</template>
-</file>
-
-<file path="pages/index.vue">
-<script setup lang="ts">
-const currentSmiles = ref("");
-const predictionResult = ref(null);
-
-// Uncomment and properly implement the API usage
-const { isLoading, error, predictWithVisualization } = useSolubilityApi();
-
-const handlePredict = async (smiles: string) => {
-  currentSmiles.value = smiles;
-  predictionResult.value = null;
-
-  try {
-    const result = await predictWithVisualization(smiles);
-    predictionResult.value = result;
-  } catch (err) {
-    console.error("Prediction failed", err);
-  }
-};
-</script>
-
-<template>
-  <div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-    <header class="max-w-3xl mx-auto text-center mb-12">
-      <h1 class="text-3xl font-extrabold text-gray-900 sm:text-4xl mb-3">
-        Molecular Solubility Predictor
-      </h1>
-      <p class="text-lg text-gray-600 max-w-2xl mx-auto">
-        Predict the solubility of molecules using a Graph Neural Network model
-      </p>
-    </header>
-
-    <div class="max-w-4xl mx-auto">
-      <div class="bg-white shadow-md rounded-lg p-6 mb-8">
-        <MoleculeInput @predict="handlePredict" />
-      </div>
-
-      <div v-if="currentSmiles" class="visualization-section">
-        <MoleculeViewer
-          :smiles="currentSmiles"
-          :molecule-data="predictionResult" />
-      </div>
-
-      <div class="results-section">
-        <PredictionResult
-          :prediction-data="predictionResult"
-          :loading="isLoading"
-          :error="error" />
-      </div>
-    </div>
-  </div>
-</template>
 </file>
 
 <file path="plugins/performance.ts">
@@ -431,6 +187,11 @@ dist
 .env.development
 .env.production
 .env.test
+</file>
+
+<file path=".env.example">
+# Base URL for the FastAPI backend API
+API_BASE_URL=http://localhost:8000
 </file>
 
 <file path=".gitignore">
@@ -586,84 +347,6 @@ export default defineNuxtConfig({
 }
 </file>
 
-<file path="README.md">
-# Nuxt Minimal Starter
-
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
-
-## Setup
-
-Make sure to install dependencies:
-
-```bash
-# npm
-npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
-```
-
-## Development Server
-
-Start the development server on `http://localhost:3000`:
-
-```bash
-# npm
-npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
-```
-
-## Production
-
-Build the application for production:
-
-```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
-</file>
-
 <file path="tailwind.config.js">
 /** @type {import('tailwindcss').Config} */
 module.exports = {
@@ -697,58 +380,481 @@ export default defineConfig({
 });
 </file>
 
-<file path="components/molecule/MoleculeViewer.vue">
+<file path="components/molecule/MoleculeInput.vue">
 <script setup lang="ts">
-const props = defineProps({
-  smiles: {
-    type: String,
-    default: "",
-  },
-  moleculeData: {
-    type: Object,
-    default: () => ({}),
-  },
-  moleculeName: {
-    type: String,
-    default: "",
-  },
-});
+const smiles = ref("");
+const isValid = ref(false);
+const isLoading = ref(false);
+const validationError = ref("");
+const sampleMolecules = ref<any[]>([]);
+const debounceTimeout = ref<NodeJS.Timeout | null>(null);
 
-const moleculeContainer = ref(null);
-const loading = ref(true);
-const error = ref("");
-let rdkitInstance = null;
+const api = useSolubilityApi();
 
-const initRDKit = async () => {
-  const RDKit = await import("@rdkit/rdkit");
-  return RDKit;
-};
-
+// Load sample molecules
 onMounted(async () => {
   try {
-    // initialize RDKit
-    rdkitInstance = await initRDKit();
-    loading.value = false;
-
-    //  render molecule if SMILEs is given
-    if (props.smiles) {
-      renderMolecule();
-    }
-  } catch (error: any) {
-    loading.value = false;
-    error.value = "Failed to load molecule visualization library";
-    console.error(error);
+    const response = await api.getSampleMolecules();
+    sampleMolecules.value = response.samples;
+  } catch (error) {
+    console.error("Failed to load sample molecules:", error);
   }
 });
 
-// watch(
-//   () => props.smiles,
-//   () => {
-//     if (props.smiles && !loading.value && rdkitInstance) {
-//       renderMolecule();
-//     }
-//   }
-// );
+// Validate SMILES string with debouncing
+const validateSmiles = async () => {
+  // Clear any existing timeout
+  if (debounceTimeout.value) {
+    clearTimeout(debounceTimeout.value);
+  }
+
+  // Set a new timeout
+  debounceTimeout.value = setTimeout(async () => {
+    if (!smiles.value) {
+      isValid.value = false;
+      validationError.value = "";
+      return;
+    }
+
+    try {
+      const response = await api.validateSmiles(smiles.value);
+      isValid.value = response.valid;
+      validationError.value = response.valid ? "" : "Invalid SMILES structure";
+    } catch (error) {
+      isValid.value = false;
+      validationError.value = "Validation failed";
+    }
+  }, 500); // 500ms debounce delay
+};
+
+// Set selected sample molecule
+const selectSample = (sample: any) => {
+  smiles.value = sample.smiles;
+  validateSmiles();
+};
+
+// Emit prediction request
+const emit = defineEmits(["predict"]);
+const predict = () => {
+  if (isValid.value && !isLoading.value) {
+    emit("predict", smiles.value);
+  }
+};
+</script>
+
+<template>
+  <div class="molecule-input">
+    <div class="mb-6">
+      <label
+        for="smiles-input"
+        class="block text-sm font-medium text-gray-700 mb-2">
+        Enter SMILES or select a sample molecule
+      </label>
+      <div class="flex">
+        <input
+          id="smiles-input"
+          v-model="smiles"
+          type="text"
+          placeholder="Enter SMILES string (e.g. CC(=O)OC1=CC=CC=C1C(=O)O)"
+          @input="validateSmiles"
+          class="flex-1 min-w-0 block w-full px-3 py-2 rounded-l-md border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+        <button
+          @click="predict"
+          :disabled="!isValid || isLoading"
+          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-r-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
+          {{ isLoading ? "Loading..." : "Predict" }}
+        </button>
+      </div>
+      <p v-if="validationError" class="mt-2 text-sm text-red-600">
+        {{ validationError }}
+      </p>
+    </div>
+
+    <!-- Sample Molecules -->
+    <div class="mt-8">
+      <h4 class="text-lg font-medium text-gray-900 mb-3">Sample Molecules</h4>
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        <button
+          v-for="sample in sampleMolecules"
+          :key="sample.name"
+          @click="selectSample(sample)"
+          class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm text-gray-800 transition-colors duration-150 truncate">
+          {{ sample.name }}
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+</file>
+
+<file path="components/prediction/PredictionResult.vue">
+<script setup lang="ts">
+import type { PredictionResponse } from "@/types/api";
+
+const props = defineProps<{
+  predictionData: PredictionResponse | null;
+  loading: boolean;
+  error: string;
+}>();
+
+const solubilityDescription = computed(() => {
+  const solubility = props.predictionData?.predicted_solubility;
+
+  if (solubility === undefined || solubility === null)
+    return "unknown solubility characteristics"; // Handle null/undefined
+
+  if (solubility > 0) {
+    return "very high solubility, making it easily dissolvable in water";
+  } else if (solubility > -2) {
+    return "high solubility, generally well-suited for aqueous environments";
+  } else if (solubility > -4) {
+    return "moderate solubility, which may be suitable for many applications";
+  } else if (solubility > -6) {
+    return "low solubility, which may require solubility enhancers in formulations";
+  } else {
+    return "very low solubility, which could present challenges for dissolution";
+  }
+});
+</script>
+
+<template>
+  <div class="bg-white shadow-md rounded-lg p-6 mt-8">
+    <div v-if="loading" class="py-8 text-center">
+      <div
+        class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent mb-4"></div>
+      <p class="text-gray-600">Calculating solubility prediction...</p>
+    </div>
+
+    <div v-else-if="error" class="py-6 text-center">
+      <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+        <p class="text-red-600">{{ error }}</p>
+      </div>
+    </div>
+
+    <div v-else-if="predictionData" class="results">
+      <div class="border-b border-gray-200 pb-4 mb-6">
+        <h3 class="text-xl font-semibold text-gray-800">
+          Solubility Prediction Results
+        </h3>
+      </div>
+
+      <!-- Uncomment when SolubilityGauge component is ready -->
+      <!-- <div class="mb-6">
+        <SolubilityGauge
+          :value="predictionData.predicted_solubility"
+          :level="predictionData.solubility_level" />
+      </div> -->
+
+      <div class="bg-gray-50 rounded-md p-4 mb-6">
+        <div class="grid grid-cols-2 gap-4">
+          <div class="result-item">
+            <span class="block text-sm text-gray-500 mb-1"
+              >Predicted Solubility:</span
+            >
+            <span class="text-lg font-medium text-gray-900">{{
+              predictionData.predicted_solubility?.toFixed(2) || "N/A"
+            }}</span>
+          </div>
+          <div class="result-item">
+            <span class="block text-sm text-gray-500 mb-1"
+              >Solubility Level:</span
+            >
+            <span class="text-lg font-medium text-gray-900">{{
+              predictionData.solubility_level || "N/A"
+            }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-blue-50 border border-blue-100 rounded-md p-4">
+        <p class="text-blue-800">
+          This molecule has {{ solubilityDescription }}.
+        </p>
+      </div>
+    </div>
+  </div>
+</template>
+</file>
+
+<file path="pages/index.vue">
+<script setup lang="ts">
+import type { PredictionResponse } from "@/types/api";
+const currentSmiles = ref("");
+const predictionResult = ref<PredictionResponse | null>(null);
+
+const { isLoading, error, predictWithVisualization } = useSolubilityApi();
+
+const handlePredict = async (smiles: string) => {
+  currentSmiles.value = smiles;
+  predictionResult.value = null;
+
+  try {
+    const result: PredictionResponse = await predictWithVisualization(smiles);
+    predictionResult.value = result;
+  } catch (err) {
+    console.error("Prediction failed", err);
+  }
+};
+</script>
+
+<template>
+  <div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <header class="max-w-3xl mx-auto text-center mb-12">
+      <h1 class="text-3xl font-extrabold text-gray-900 sm:text-4xl mb-3">
+        Molecular Solubility Predictor
+      </h1>
+      <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+        Predict the solubility of molecules using a Graph Neural Network model
+      </p>
+    </header>
+
+    <div class="max-w-4xl mx-auto">
+      <div class="bg-white shadow-md rounded-lg p-6 mb-8">
+        <MoleculeInput @predict="handlePredict" />
+      </div>
+
+      <div v-if="currentSmiles" class="visualization-section">
+        <MoleculeViewer
+          :smiles="currentSmiles"
+          :molecule-data="predictionResult"
+          :molecule-name="predictionResult?.compound_name || 'Molecule'" />
+      </div>
+
+      <div class="results-section">
+        <PredictionResult
+          :prediction-data="predictionResult"
+          :loading="isLoading"
+          :error="error" />
+      </div>
+    </div>
+  </div>
+</template>
+</file>
+
+<file path="README.md">
+# Molecular Solubility Predictor - Webapp
+
+[![Nuxt](https://img.shields.io/badge/Nuxt-3-00DC82?style=flat&logo=nuxt.js)](https://nuxt.com/)
+[![Vue.js](https://img.shields.io/badge/Vue.js-3-4FC08D?style=flat&logo=vue.js)](https://vuejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-blue?style=flat&logo=typescript)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=flat&logo=tailwind-css)](https://tailwindcss.com/)
+
+This is the Nuxt.js frontend application for the Molecular Solubility Predictor. It provides a user interface to interact with a FastAPI backend, which uses a trained Graph Neural Network (GNN) model to predict the aqueous solubility of chemical compounds based on their SMILES representation.
+
+## Features
+
+- **SMILES Input:** Enter a molecule's structure using its SMILES string.
+- **Sample Molecules:** Select from predefined sample molecules for quick testing.
+- **Input Validation:** Real-time validation of the entered SMILES string against the backend.
+- **Solubility Prediction:** Send the SMILES string to the FastAPI backend to get the predicted solubility value and level.
+- **Molecule Visualization:** Displays the 2D structure of the input molecule along with key properties (requires RDKit.js or backend-generated image).
+- **Responsive Design:** Built with Tailwind CSS for usability across different screen sizes.
+
+## Technology Stack
+
+- **Framework:** [Nuxt 3](https://nuxt.com/)
+- **UI Library:** [Vue 3](https://vuejs.org/) (Composition API with `<script setup>`)
+- **Language:** [TypeScript](https://www.typescriptlang.org/)
+- **Styling:** [Tailwind CSS](https://tailwindcss.com/)
+- **API Communication:** Native `fetch` (or `$fetch` via Nuxt) within a composable (`useSolubilityApi`)
+- **Molecule Visualization:** Future plan to use [RDKit.js](https://www.rdkit.org/docs/GettingStartedInJS.html) but for now uses images generated by the backend.
+- **State Management:** Vue Reactivity (`ref`, `computed`) (Pinia is available but might not be actively used based on review).
+- **Linting:** ESLint (using Nuxt ESLint config)
+
+## Prerequisites
+
+- **Node.js:** Version 18.x or higher (as specified in `Dockerfile`).
+- **Package Manager:** npm, pnpm, yarn, or bun.
+- **Running Backend API:** The [FastAPI backend](https://github.com/viv-bad/solubility-predictor) for solubility prediction _must_ be running and accessible from the machine where you run this frontend.
+
+## Getting Started
+
+1.  **Clone the repository:**
+
+    ```bash
+    git clone https://github.com/viv-bad/solubility-predictor-webapp
+    cd solubility-predictor-webapp
+    ```
+
+2.  **Install dependencies:**
+    Choose your preferred package manager:
+
+    ```bash
+    # npm
+    npm install
+
+    # pnpm
+    pnpm install
+
+    # yarn
+    yarn install
+
+    # bun
+    bun install
+    ```
+
+3.  **Configure Environment Variables:**
+    The application needs to know the URL of your running FastAPI backend. Create a `.env` file in the root of the project by copying the example:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Edit the `.env` file and set the `API_BASE_URL` variable:
+
+    ```dotenv
+    # .env
+    # Example: If the backend runs locally on port 8000
+    API_BASE_URL=http://localhost:8000
+
+    # Example: If the backend is deployed (to be done in near future)
+    # API_BASE_URL=https://fastapi-backend.com
+    ```
+
+    _Note: If you don't have an `.env.example` file, create the `.env` file directly with the `API_BASE_URL` line._
+
+4.  **Run the Development Server:**
+    Start the Nuxt development server. It will usually be available at `http://localhost:3000`.
+
+    ```bash
+    # npm
+    npm run dev
+
+    # pnpm
+    pnpm dev --open # --open automatically opens it in your browser
+
+    # yarn
+    yarn dev
+
+    # bun
+    bun run dev --open
+    ```
+
+## Building for Production
+
+1.  **Build the application:**
+    This command compiles the Vue/Nuxt application and creates an optimized production build in the `.output` directory.
+
+    ```bash
+    # npm
+    npm run build
+
+    # pnpm
+    pnpm build
+
+    # yarn
+    yarn build
+
+    # bun
+    bun run build
+    ```
+
+2.  **Preview the Production Build:**
+    You can locally serve the production build to test it before deployment.
+
+    ```bash
+    # npm
+    npm run preview
+
+    # pnpm
+    pnpm preview
+
+    # yarn
+    yarn preview
+
+    # bun
+    bun run preview
+    ```
+
+## Deployment
+
+- **Docker:** A multi-stage `Dockerfile` is included in the repository. You can build and run a containerized version of the application:
+
+  ```bash
+  # Build the docker image
+  docker build -t molecular-solubility-frontend .
+
+  # Run the container (replace 8080 with your desired host port)
+  # Make sure to pass the API_BASE_URL environment variable!
+  docker run -p 8080:3000 -e API_BASE_URL=http://your-backend-host:8000 --name solubility-frontend molecular-solubility-frontend
+  ```
+
+  Access the application at `http://localhost:8080`. *Remember that the `API_BASE_URL` inside the container must point to a URL accessible *from* the container (e.g., using Docker networking or a public URL, not `localhost` unless using host networking).*
+
+- **Static Hosting (if applicable):** If your app doesn't rely heavily on Nuxt server features beyond the initial render, you could potentially generate a static site (`npm run generate`) and host it on platforms like Netlify, Vercel, GitHub Pages, etc. However, given the dynamic API interaction, the default server build (`npm run build`) is likely more appropriate.
+
+- **Node Server:** Deploy the `.output` directory to any platform that can run a Node.js server (e.g., VPS, Heroku, Render, Fly.io).
+
+Refer to the [Nuxt Deployment Documentation](https://nuxt.com/docs/getting-started/deployment) for more detailed deployment strategies.
+
+## API Backend Requirement
+
+**Important:** This frontend application is purely an interface. It **requires** the corresponding FastAPI backend service to be running and accessible at the URL configured via the `API_BASE_URL` environment variable. All predictions and validations are performed by the backend API.
+
+## Project Structure (Key Directories)
+
+- `assets/`: Global styles (Tailwind entry point), fonts, or images.
+- `components/`: Reusable Vue components (e.g., `MoleculeInput`, `PredictionResult`).
+- `composables/`: Reusable Vue Composition API functions (e.g., `useSolubilityApi` for backend interaction).
+- `pages/`: Application views and routing structure. `index.vue` is the main page.
+- `public/`: Static assets directly served (e.g., `robots.txt`).
+- `server/`: Nuxt server-side API routes or middleware (if any were added).
+- `nuxt.config.ts`: Main Nuxt configuration file.
+- `Dockerfile`: For building production Docker images.
+
+---
+
+_Feel free to add sections on Contribution Guidelines or Licensing if applicable._
+</file>
+
+<file path="types/api.ts">
+export interface PredictionResponse {
+  smiles: string;
+  compound_name: string;
+  predicted_solubility: number;
+  solubility_level: string;
+  mol_weight: number;
+  logp: number;
+  num_atoms: number;
+  image?: string;
+}
+
+export interface SampleMoleculesResponse {
+  samples: {
+    name: string;
+    smiles: string;
+    solubility_level: string;
+  }[];
+}
+
+export interface ValidateSmilesResponse {
+  valid: boolean;
+  atom_count: number;
+  bond_count: number;
+  has_aromaticity: boolean;
+}
+
+export interface BatchPredictionResponse {
+  predictions: PredictionResponse[];
+  invalid_count: number;
+  valid_count: number;
+  invalid_smiles: string[];
+}
+</file>
+
+<file path="components/molecule/MoleculeViewer.vue">
+<script setup lang="ts">
+import type { PredictionResponse } from "@/types/api";
+
+const props = defineProps<{
+  smiles: string;
+  moleculeData: PredictionResponse | null;
+  moleculeName: string | "null";
+}>();
+
+const moleculeContainer = ref(null);
+const loading = ref(false);
+const error = ref("");
 
 watch(
   () => props.moleculeData,
@@ -760,36 +866,12 @@ watch(
   { immediate: true }
 );
 
-const renderMolecule = () => {
-  if (!moleculeContainer.value || !rdkitInstance) return;
-
-  try {
-    // clear previous rendering
-    moleculeContainer.value.innerHTML = "";
-
-    // Create molecule from SMILES
-    const mol = rdkitInstance.get_mol(props.smiles);
-
-    if (!mol) {
-      error.value = "Invalid molecule";
-      return;
-    }
-
-    const svg = mol.get_svg();
-
-    moleculeContainer.value.innerHTML = svg;
-  } catch (error: any) {
-    error.value = "Failed to render molecule";
-    console.error(error);
-  }
-};
-
 const renderMoleculeImage = () => {
   if (!moleculeContainer.value || !props.moleculeData?.image) return;
 
   try {
     // clear previous rendering
-    moleculeContainer.value.innerHTML = "";
+    (moleculeContainer.value as HTMLElement).innerHTML = "";
 
     // Create an image element from the base64 data
     const img = document.createElement("img");
@@ -797,8 +879,8 @@ const renderMoleculeImage = () => {
     img.style.maxWidth = "100%";
     img.style.maxHeight = "100%";
 
-    moleculeContainer.value.appendChild(img);
-  } catch (error) {
+    (moleculeContainer.value as HTMLElement).appendChild(img);
+  } catch (error: any) {
     error.value = "Failed to render molecule image";
     console.error(error);
   }
@@ -860,37 +942,36 @@ const renderMoleculeImage = () => {
 </file>
 
 <file path="composables/useSolubilityApi.ts">
-interface SolubilityApiOptions {
-  baseUrl?: string;
-}
+import type {
+  BatchPredictionResponse,
+  PredictionResponse,
+  SampleMoleculesResponse,
+  ValidateSmilesResponse,
+} from "~/types/api";
 
-export function useSolubilityApi(options: SolubilityApiOptions = {}) {
-  const baseUrl = options.baseUrl || "http://localhost:8000";
+export function useSolubilityApi() {
+  const config = useRuntimeConfig();
+  const baseUrl = config.public.apiBaseUrl || "http://localhost:8000";
   const isLoading = ref(false);
   const error = ref("");
 
   // Predict solubility for a single molecule
-  const predictSolubility = async (smiles: string) => {
+  const predictSolubility = async (
+    smiles: string
+  ): Promise<PredictionResponse> => {
     isLoading.value = true;
     error.value = "";
 
     try {
-      const response = await fetch(`${baseUrl}/predict`, {
+      const data = await $fetch<PredictionResponse>(`${baseUrl}/predict`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ smiles }),
+        body: { smiles },
       });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
       return data;
     } catch (error: any) {
-      error.value = error.message || "Failed to predict solubility";
+      error.value =
+        error.data?.message || error.message || "Failed to predict solubility";
       throw error;
     } finally {
       isLoading.value = false;
@@ -898,7 +979,9 @@ export function useSolubilityApi(options: SolubilityApiOptions = {}) {
   };
 
   // Predict with visualization
-  const predictWithVisualization = async (smiles: string) => {
+  const predictWithVisualization = async (
+    smiles: string
+  ): Promise<PredictionResponse> => {
     isLoading.value = true;
     error.value = "";
 
@@ -906,19 +989,19 @@ export function useSolubilityApi(options: SolubilityApiOptions = {}) {
       const formData = new FormData();
       formData.append("smiles", smiles);
 
-      const response = await fetch(`${baseUrl}/predict-with-visualization`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await $fetch<PredictionResponse>(
+        `${baseUrl}/predict-with-visualization`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
       return data;
     } catch (error: any) {
-      error.value = error.message || "Failed to predict with visualization";
+      error.value =
+        error.data?.message ||
+        error.message ||
+        "Failed to predict with visualization";
       throw error;
     } finally {
       isLoading.value = false;
@@ -926,21 +1009,20 @@ export function useSolubilityApi(options: SolubilityApiOptions = {}) {
   };
 
   // Get sample molecules
-  const getSampleMolecules = async () => {
+  const getSampleMolecules = async (): Promise<SampleMoleculesResponse> => {
     isLoading.value = true;
     error.value = "";
 
     try {
-      const response = await fetch(`${baseUrl}/sample-molecules`);
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await $fetch<SampleMoleculesResponse>(
+        `${baseUrl}/sample-molecules`
+      );
       return data;
     } catch (error: any) {
-      error.value = error.message || "Failed to get sample molecules";
+      error.value =
+        error.data?.message ||
+        error.message ||
+        "Failed to get sample molecules";
       throw error;
     } finally {
       isLoading.value = false;
@@ -948,49 +1030,51 @@ export function useSolubilityApi(options: SolubilityApiOptions = {}) {
   };
 
   // Validate SMILES
-  const validateSmiles = async (smiles: string) => {
+  const validateSmiles = async (
+    smiles: string
+  ): Promise<ValidateSmilesResponse> => {
     const formData = new FormData();
     formData.append("smiles", smiles);
 
     try {
-      const response = await fetch(`${baseUrl}/validate-smiles`, {
-        method: "POST",
-        body: formData,
-      });
+      const data = await $fetch<ValidateSmilesResponse>(
+        `${baseUrl}/validate-smiles`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      return await response.json();
+      return data;
     } catch (error: any) {
-      console.error("SMILES validation error:", error);
-      return { valid: false };
+      error.value =
+        error.data?.message || error.message || "Failed to validate SMILES";
+      throw error;
     }
   };
 
   // Batch prediction
-  const predictBatch = async (smilesList: string[]) => {
+  const predictBatch = async (
+    smilesList: string[]
+  ): Promise<BatchPredictionResponse> => {
     isLoading.value = true;
     error.value = "";
 
     try {
-      const response = await fetch(`${baseUrl}/batch-predict`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ smiles_list: smilesList }),
-      });
+      const data = await $fetch<BatchPredictionResponse>(
+        `${baseUrl}/batch-predict`,
+        {
+          method: "POST",
+          body: { smiles_list: smilesList },
+        }
+      );
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
       return data;
     } catch (error: any) {
-      error.value = error.message || "Failed to process batch prediction";
+      error.value =
+        error.data?.message ||
+        error.message ||
+        "Failed to process batch prediction";
       throw error;
     } finally {
       isLoading.value = false;
