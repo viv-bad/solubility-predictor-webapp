@@ -22,9 +22,28 @@ const handlePredict = async (smiles: string) => {
 <template>
   <div>
     <div v-if="$serverWaking" class="server-loading-indicator">
+      <div
+        class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
+        <div class="text-center">
+          <div
+            class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent mb-4"></div>
+          <p class="text-white text-lg font-medium">
+            Our prediction server is starting up...
+          </p>
+          <p class="text-white text-sm mt-2">This may take a moment</p>
+        </div>
+      </div>
       <div class="bg-amber-50 border border-amber-200 rounded-md p-4 mb-4">
         <p class="text-amber-700">
           Our prediction server is starting up. This may take a moment...
+        </p>
+      </div>
+    </div>
+    <div v-else>
+      <div class="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
+        <p class="text-green-700">
+          Our prediction server is ready to go! Either input a SMILES formula
+          below or select an example...
         </p>
       </div>
     </div>
